@@ -297,9 +297,11 @@ pipeline {
                 replyTo: 'jenkins@example.com',
                 mimeType: 'text/html',
                 attachmentsPattern: 'image-format.html'
-            )
-        }
-    }
-}
-}
+               )
+           }
+       }
+         }
+      }
+
+
 '''
