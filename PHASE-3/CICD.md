@@ -198,3 +198,108 @@ pipeline {
 
 }
 ```
+
+
+
+
+
+'''groovyforRubeena
+pipeline {
+    agent any
+    
+    tools {
+        jdk "jdk17"
+        maven "maven"
+    }
+
+    stages {
+        stage('git checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/artisenzubair/Boardgame.git'
+            }
+        }
+                stage('mvn compile') {
+            steps {
+                sh "mvn compile"
+            }
+        }
+        stage('mvn test') {
+            steps {
+                sh "mvn test"
+            }
+        }
+         stage('mvn package') {
+            steps {
+                sh "mvn package"
+            }
+        }
+        stage('file system scan') {
+            steps {
+                sh "trivy fs --format table -o fs-format.html ."
+            }
+        }
+                stage('dockerbuild') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker-cred', toolName: 'docker') {
+                     sh "docker build -t rubinafayeen58/two-tier:latest ."
+                    }
+                }
+            }
+        }
+        stage('scanning the image') {
+            steps {
+                sh "trivy image --format table -o image-format.html rubinafayeen58/two-tier:latest"
+            }
+        }
+        stage('docker push') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'docker-cred', toolName: 'docker') {
+                     sh "docker push rubinafayeen58/two-tier:latest "
+                    }
+                }
+            }
+        }
+        stage('seding the email') {
+            steps {
+                sh "trivy image --format table -o result-format.html rubinafayeen58/two-tier:latest"
+            }
+        }
+    }
+     post {
+    always {
+        script {
+            def jobName = env.JOB_NAME
+            def buildNumber = env.BUILD_NUMBER
+            def pipelineStatus = currentBuild.result ?: 'UNKNOWN'
+            def bannerColor = pipelineStatus.toUpperCase() == 'SUCCESS' ? 'green' : 'red'
+
+            def body = """
+                <html>
+                <body>
+                <div style="border: 4px solid ${bannerColor}; padding: 10px;">
+                <h2>${jobName} - Build ${buildNumber}</h2>
+                <div style="background-color: ${bannerColor}; padding: 10px;">
+                <h3 style="color: white;">Pipeline Status: ${pipelineStatus.toUpperCase()}</h3>
+                </div>
+                <p>Check the <a href="${BUILD_URL}">console output</a>.</p>
+                </div>
+                </body>
+                </html>
+            """
+
+            emailext (
+                subject: "${jobName} - Build ${buildNumber} - ${pipelineStatus.toUpperCase()}",
+                body: body,
+                to: 'rubinafayeen58@gmail.com',
+                from: 'jenkins@example.com',
+                replyTo: 'jenkins@example.com',
+                mimeType: 'text/html',
+                attachmentsPattern: 'image-format.html'
+            )
+        }
+    }
+}
+}
+'''
